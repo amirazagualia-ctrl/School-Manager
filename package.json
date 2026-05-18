@@ -1,0 +1,46 @@
+{
+  "name": "madrasa-tn",
+  "version": "1.0.0",
+  "description": "Plateforme éducative tunisienne - Gestion des élèves de la base au lycée avec IA",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "dev:worker": "wrangler pages dev dist --d1=DB --local --persist-to=.wrangler/state --ip 0.0.0.0 --port 3000",
+    "build:worker": "vite build",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:seed:local": "wrangler d1 execute DB --local --file=./migrations/seed.sql",
+    "db:reset": "rm -rf .wrangler/state/v3/d1 && npm run db:migrate:local && npm run db:seed:local"
+  },
+  "dependencies": {
+    "hono": "^4.6.14",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "zustand": "^5.0.2",
+    "lucide-react": "^0.468.0",
+    "i18next": "^24.0.5",
+    "react-i18next": "^15.2.0",
+    "i18next-browser-languagedetector": "^8.0.2",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.5.5",
+    "recharts": "^2.15.0",
+    "date-fns": "^4.1.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "@hono/vite-build": "^1.2.0",
+    "@hono/vite-dev-server": "^0.18.0",
+    "@types/react": "^18.3.17",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vite-plugin-pwa": "^0.21.1",
+    "wrangler": "^3.95.0"
+  }
+}
