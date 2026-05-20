@@ -63,8 +63,12 @@
 # Installer les dépendances
 npm install
 
-# Appliquer les migrations + seed
-npm run db:reset
+# Appliquer le schéma + données de base
+npx wrangler d1 execute madrasa-tn-db --local --file=./migrations/0001_initial_schema.sql
+npx wrangler d1 execute madrasa-tn-db --local --file=./migrations/seed.sql
+
+# Appliquer le programme tunisien complet (84 cours P1 → Bac)
+npx wrangler d1 execute madrasa-tn-db --local --file=./migrations/0002_tunisian_curriculum.sql
 
 # Construire l'app
 npm run build
@@ -74,6 +78,10 @@ npm run dev:worker
 ```
 
 L'app sera disponible sur `http://localhost:3000`
+
+> 💡 **Note Wrangler D1** : si `wrangler pages dev` et `wrangler d1 execute` créent deux bases différentes
+> (`miniflare-D1DatabaseObject/<hash1>.sqlite` vs `<hash2>.sqlite`), arrêtez le serveur, appliquez les
+> migrations via CLI **avant** de démarrer `pages dev`. Le binding `--d1=DB` réutilisera ensuite la même DB.
 
 ### 🔑 Comptes de démonstration
 
@@ -163,18 +171,51 @@ madrasa-tn/
 
 ---
 
-## 🔐 Configuration de l'IA (optionnel)
+## 🔐 Configuration de l'IA
 
-Par défaut, l'app fonctionne en **mode démo** sans clé OpenAI (réponses prédéfinies).
-
-Pour activer l'IA réelle, créez un fichier `.dev.vars` :
+Par défaut, l'app fonctionne en **mode démo** (réponses prédéfinies). Pour activer l'IA réelle, créez un fichier `.dev.vars` à la racine :
 
 ```bash
 # .dev.vars
-OPENAI_API_KEY=sk-votre-cle-openai
+
+# Option 1 : OpenAI direct
+OPENAI_API_KEY="sk-votre-cle-openai"
+OPENAI_MODEL="gpt-4o-mini"   # ou gpt-4, gpt-5-mini, etc.
+
+# Option 2 : Proxy GenSpark (ou tout endpoint OpenAI-compatible)
+OPENAI_API_KEY="votre-token"
+OPENAI_BASE_URL="https://www.genspark.ai/api/llm_proxy/v1"
+OPENAI_MODEL="gpt-5-mini"
 ```
 
-Pour le déploiement Cloudflare Pages, ajoutez la variable dans le dashboard.
+**Modèles supportés** (via GenSpark proxy) : `gpt-5`, `gpt-5-mini`, `gpt-5-nano`, `gpt-5-codex`, `gpt-5.1`, `gpt-5.2`, etc.
+
+### Fonctionnalités IA disponibles
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/ai/chat` | Tuteur conversationnel Ostadh |
+| `POST /api/ai/generate-quiz` | Génération de QCM alignés programme tunisien |
+| `POST /api/ai/correct-essay` | Correction automatique de rédactions |
+| `POST /api/ai/recommendations` | Recommandations basées sur notes faibles |
+| **`POST /api/ai/generate-course`** ⭐ | **Génération complète d'un cours + leçons** |
+| **`POST /api/ai/generate-lesson`** ⭐ | **Génération d'une leçon individuelle** |
+
+Pour le déploiement Cloudflare Pages, ajoutez ces variables dans `Settings → Environment variables`.
+
+---
+
+## 👨‍🏫 Espace enseignant — Création de cours
+
+L'interface enseignant (`/courses/manage`) permet :
+
+- **Statistiques en temps réel** : total cours, publiés, brouillons, leçons
+- **Filtrage** par cycle (Primaire / Collège / Lycée) + recherche
+- **Éditeur de cours complet** : matière, niveau, **section** (Math/Sciences/Lettres/...) pour le lycée, difficulté, image de couverture
+- **Éditeur de leçons** : type (texte / vidéo / PDF / interactif / quiz), aperçu Markdown live
+- **Assistant IA en 3 étapes** : contexte → sujet → aperçu, génère un cours structuré complet
+- **Templates JSON** pour leçons interactives (exercice, association, code, rédaction, Punnett, comptage)
+- **Création atomique** via `POST /api/courses/full` (course + lessons en une transaction)
 
 ---
 

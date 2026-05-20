@@ -137,6 +137,66 @@ coursesRoutes.post('/', async (c) => {
   return c.json({ success: true, data: course });
 });
 
+// ---------- CRÉER UN COURS COMPLET (avec leçons en une seule opération) ----------
+coursesRoutes.post('/full', async (c) => {
+  const user = await requireAuth(c);
+  if (!user || !hasRole(user, 'enseignant', 'admin_ecole', 'ministere')) {
+    return c.json({ success: false, error: 'Accès refusé' }, 403);
+  }
+
+  const body = await c.req.json<any>();
+  const {
+    title, title_ar, title_en, description,
+    subject_id, grade_level_id, section_id,
+    cover_image, difficulty, duration_minutes, language,
+    is_published, lessons = []
+  } = body;
+
+  if (!title || !subject_id || !grade_level_id) {
+    return c.json({ success: false, error: 'Champs requis manquants' }, 400);
+  }
+
+  // 1. Créer le cours
+  const courseResult = await c.env.DB.prepare(
+    `INSERT INTO courses (title, title_ar, title_en, description, subject_id, grade_level_id, section_id, author_id, cover_image, difficulty, duration_minutes, language, is_published)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  )
+    .bind(
+      title, title_ar || null, title_en || null, description || null,
+      subject_id, grade_level_id, section_id || null, user.id,
+      cover_image || null, difficulty || 'moyen', duration_minutes || 0,
+      language || 'fr', is_published ? 1 : 0
+    )
+    .run();
+
+  const courseId = courseResult.meta.last_row_id as number;
+
+  // 2. Créer les leçons (si fournies)
+  let createdLessons = 0;
+  for (let i = 0; i < lessons.length; i++) {
+    const l = lessons[i];
+    if (!l.title || !l.content_type) continue;
+    await c.env.DB.prepare(
+      `INSERT INTO lessons (course_id, title, content_type, content, video_url, duration_minutes, order_index)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        courseId,
+        l.title,
+        l.content_type,
+        l.content || null,
+        l.video_url || null,
+        l.duration_minutes || 10,
+        l.order_index ?? i + 1
+      )
+      .run();
+    createdLessons++;
+  }
+
+  const course = await c.env.DB.prepare('SELECT * FROM courses WHERE id = ?').bind(courseId).first();
+  return c.json({ success: true, data: { ...course, lessons_created: createdLessons } });
+});
+
 // ---------- METTRE À JOUR UN COURS ----------
 coursesRoutes.put('/:id', async (c) => {
   const user = await requireAuth(c);
